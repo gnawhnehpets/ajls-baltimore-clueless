@@ -1,1 +1,11 @@
-#this is a test README file
+#How to create a new repository
+touch README.md
+git init
+git add README.md
+git commit -m "first commit"
+git remote add origin https://github.com/biohack/my_portfolio.git
+git push -u origin master
+
+#Push an existing repository from the command line
+git remote add origin https://github.com/biohack/my_portfolio.git
+git push -u origin master
