@@ -1,3 +1,5 @@
+Test 7/17
+
 #How to create a new repository
 touch README.md
 git init
