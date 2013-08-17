@@ -350,7 +350,18 @@
   </target>
 
 
+<!-- ==================== Re-deploy Target ================================== -->
 
+<!--
+
+  Removes, then installs.
+
+-->
+
+  <target name="redeploy" depends="remove,install"
+   description="Install application to servlet container">
+  </target>
+	
 <!-- ==================== Install Target ================================== -->
 
 <!--
