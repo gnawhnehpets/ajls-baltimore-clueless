@@ -1,7 +1,6 @@
 Test 7/17
-Jason:
-Lauren: hellohello
-Amar:
+
+jason broke this.
 
 #How to create a new repository
 touch README.md
@@ -14,3 +13,48 @@ git push -u origin master
 #Push an existing repository from the command line
 git remote add origin https://github.com/biohack/ajls-baltimore-clueless.git
 git push -u origin master
+
+
+Jason's rambling, 8/14:
+--------------------------
+
+I think I've got the basic basic basic WebSocket working, as well as a basic Welcome page and Help page. I've committed them to my fork of Steve's ajls-baltimore-clueless repo. Just an FYI. 
+Again, the purpose of the WebSocket is back and forth communication between server and client. Normally, the client has to initiate communication with the server, the server can't push to the client,
+or keep track of who the client is, using normal GET/POST/REST/SOAP stuff. WebSockets let us keep a collection of open connections, and make the server Push data to the clients on its own whenever it wants. 
+Alternative to this would be some kind of long-polling, but this is new and neat and built into Tomcat so why not. I'm hoping it'll also allow us to make a some kind of monster switch in the "onTextMessage()" 
+method to differentiate different kinds of actions (createGame, joinGame, accuse, move, suggest, whatever) and easily call the corresponding back end methods. I'm guessing once you're in a game we'll give the
+client some kind of gameID that will affect how accuse/move and all that operate.
+
+So far the major limitation I'm seeing with the WebSocket is that you can't navigate from the page you open it on without closing the socket, so I'm just using AJAX to update the same page with new HTML when we 
+"navigate" to other places. So far this seems to be working OK, hopefully it won't become an issue. I've got the Help page just opening in a new browser tab.
+
+I've also been using this plugin for Eclipse Indigo called Aptana that does CSS, HTML, and JavaScript syntax highlighting and intellisense that kind of stuff. Kind of up to you if you'd like to use it as well.
+
+I've installed TomCat 7 locally for the application server, the Tomcat website has a pretty good tutorial on web apps if you want to take a look.
+
+Basic breakdown of the file structure I've got going so far:
+
+build: contains an ANT distro. This is also where the "scratch" folders get created/deleted when you build or clean the project with ant.
+src: Java source files, I've got a servlets folder/package in there that just has the base GameWebSocketServlet for now.
+WebContent/: HTML files
+WebContent/img: images
+WebContent/css: css
+WebContent/META-INF: I don't really know what this is, it's something for Tomcat and got generated when I made my project in eclipse. Some meta data I guess.
+WebContent/WEB-INF: compiled Java .class files, external .JARs files go in lib. There's a web.xml in here too that describes URL mappings to Java Servlets/default HTML pages.
+
+There's a build.xml file in the root directory too for ant targets. You'll have to edit the catalina.home property to point to your specific path to Tomcat once you've got it installed.
+
+When you get to it, I also had to add the following to the conf/tomcat-users.xml file in Tomcat directory to let ANT deploy to it using the "install" target:
+
+<role rolename="manager-script"/>
+<role rolename="manager"/>
+<role rolename="admin"/>
+<user username="admin" password="admin" roles="admin,manager,manager-script"/>
+
+The above goes inside the <tomcat-users> tag.
+
+Basic development lifecycle is make a change, save, do "ant all" from CMD in the same folder as build.xml (in your workspace, not in Tomcat), this will clean the build folder, compile everything and 
+repopulate the build folder. Next I've been starting tomcat with "startup" command in the directory where you installed it, then "ant remove" from back in your workspace again. This
+will remove the existing clueless app from Tomcat (might fail if it wasn't there already). You can check if it's already there by doing "ant list". Next, after it's removed, do "ant install" which will
+take everything you just compiled into the "build" folder and copy it over into Tomcat's webapps directory, which effectively hot deploys it. Then you should just be able to pop open a browser and
+go to localhost:8080/clueless, and see the welcome page. Actually using the Eclipse debugger's been acting weird so far, going to have to work on that.

@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: ajls-baltimore-clueless
+Bundle-SymbolicName: ajls-baltimore-clueless
+Bundle-Version: 1.0.0.qualifier

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html class="no-js"> 
+    <head>
+        <title>Welcome!</title>
+        <link rel="stylesheet" href="css/main.css">
+    </head>
+    <body>
+
+        <div id='outerDiv'></div>
+
+        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+
+        <script>
+			var GameContext = {};
+
+			GameContext.socket = null;
+
+			GameContext.connect = (function(host) {
+				if ('WebSocket' in window) {
+					GameContext.socket = new WebSocket(host);
+				} else if ('MozWebSocket' in window) {
+					GameContext.socket = new MozWebSocket(host);
+				} else {
+					Console.log('Error: WebSocket is not supported by this browser.');
+					return;
+				}
+
+				GameContext.socket.onopen = function() {
+					Console.log('Info: WebSocket connection opened.');
+					GameContext.socket.send("we in business");
+				};
+
+				GameContext.socket.onclose = function() {
+					Console.log('Info: WebSocket closed.');
+				};
+
+				GameContext.socket.onmessage = function(message) {
+					Console.log(message.data);
+				};
+			});
+
+            GameContext.initialize = function() {
+                if (window.location.protocol == 'http:') {
+                    alert('ws://' + window.location.host + '/clueless');
+                    GameContext.connect('ws://' + window.location.host + '/clueless/ws');
+                } else {
+                    GameContext.connect('wss://' + window.location.host + '/clueless/ws');
+                }
+            };
+        
+			$(document).ready(function() {
+				loadWelcomeScreen();
+			});
+
+            function loadWelcomeScreen() {
+                alert("ready!");
+                $("#outerDiv").load('welcome.html', function () {
+                    $("#playBtn").click(playClicked);
+                    $("#helpBtn").click(helpClicked);
+                    Console.log("I AM THE CONSOLE!");
+                });
+            }
+            
+            function loadGameBrowser() {
+                alert("play");
+                $("#outerDiv").load("lobby.html", function() {
+                    document.title='Game Browser';
+                    GameContext.initialize();
+                });
+            }
+            
+			function playClicked(evt) {
+				loadGameBrowser();
+			}
+
+			function helpClicked(evt) {
+				var popup = window.open("", "helpPopup");
+				$.get("\ClueLess_Help.htm", function(result) {
+					popup.document.write(result);
+				});
+			}
+			
+			var Console = {};
+	
+	        Console.log = (function(message) {
+	            var console = document.getElementById('console');
+	            var p = document.createElement('p');
+	            p.style.wordWrap = 'break-word';
+	            p.innerHTML = message;
+	            console.appendChild(p);
+	            while (console.childNodes.length > 25) {
+	                console.removeChild(console.firstChild);
+	            }
+	            console.scrollTop = console.scrollHeight;
+	        });
+	        
+	        
+        </script>
+        
+        <div id="console-container">
+        	<div id="console"></div>
+    	</div>
+    </body>
+    <noscript>
+        <h2 style="color: #ff0000">Seems your browser doesn't support Javascript! Websockets rely on Javascript being enabled. Please enable Javascript and reload this page!</h2>
+    </noscript>
+</html>
