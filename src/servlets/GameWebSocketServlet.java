@@ -21,12 +21,22 @@ import org.apache.catalina.websocket.StreamInbound;
 import org.apache.catalina.websocket.WebSocketServlet;
 import org.apache.catalina.websocket.WsOutbound;
 
-import com.sun.xml.internal.bind.v2.schemagen.xmlschema.List;
-
-import server.data.*;
-import dictionary.interfaceData.*;
+import server.data.CardIndex;
+import server.data.CharacterIndex;
+import server.data.WeaponIndex;
 import dictionary.data.LocationIndex;
-import dictionary.gameEntities.*;
+import dictionary.gameEntities.Card;
+import dictionary.gameEntities.ClueCharacter;
+import dictionary.gameEntities.Hallway;
+import dictionary.gameEntities.Hand;
+import dictionary.gameEntities.Location;
+import dictionary.gameEntities.StatusLogEntry;
+import dictionary.gameEntities.Weapon;
+import dictionary.interfaceData.GameState;
+import dictionary.interfaceData.Player;
+import dictionary.interfaceData.PlayerMoveData;
+import dictionary.interfaceData.SuggestOrAccuseData;
+import dictionary.interfaceData.UserActionTypes;
 
 //import util.HTMLFilter;
 
@@ -36,7 +46,7 @@ import dictionary.gameEntities.*;
 public class GameWebSocketServlet extends WebSocketServlet {
 
 
-	static final boolean DEBUG = false;
+	static final boolean DEBUG = true;
 
 	public void out(String text)
 	{
@@ -49,8 +59,7 @@ public class GameWebSocketServlet extends WebSocketServlet {
 	
 	/*Clueless objects*/
     private CardIndex cardIndex;
-    private Integer nextClientID = 0;
-    private ArrayList<Player> allPlayers;
+    private ArrayList<Player> allPlayers = new ArrayList<Player>();
     private ArrayList<Player> orderedPlayerList = new ArrayList<Player>();
 	private ArrayList<Player> losers = new ArrayList<Player>();
     private GameState latestGameState;
@@ -63,10 +72,16 @@ public class GameWebSocketServlet extends WebSocketServlet {
 	private static final String MOVE_PROMPT = "Please select room to move to.";
 	private static final String ACCUSE_PROMPT = "Please make an accusation or pass.";
 	
+	private static final String NOTIFY = "notify";
+	private static final String SUCCESS = "success";
+	private static final String FAILURE = "failure";
+	private static final String DELIM = "$!$";
+	private static final String FAILURE_DELIM = "failure"+DELIM;
+	private static final String SUCCESS_DELIM = "success"+DELIM;
+	private static final String DEBUG_DELIM = "debug" + DELIM;
+	private static final String REGEX_DELIM = "\\$\\!\\$";
 	
     private static final long serialVersionUID = 1L;
-
-    private static final String GUEST_PREFIX = "Guest";
 
     private final AtomicInteger connectionIds = new AtomicInteger(0);
     private final Set<ChatMessageInbound> globalConnections =
@@ -75,69 +90,81 @@ public class GameWebSocketServlet extends WebSocketServlet {
     @Override
     protected StreamInbound createWebSocketInbound(String subProtocol,
             HttpServletRequest request) {
-    	System.out.println("HEEEEY!");
-        return new ChatMessageInbound(connectionIds.incrementAndGet(), (String)request.getAttribute("username"));
+        return new ChatMessageInbound(connectionIds.incrementAndGet());
     }
 
     private final class ChatMessageInbound extends MessageInbound {
 
-        private final String nickname;
+        private String userName;
+        private Player p;
+        private Integer id;
         
-
-        private ChatMessageInbound(int id, String username) {
-            this.nickname = username;
+        private ChatMessageInbound(int id) {
+        	this.id=id;
         }
 
         @Override
         protected void onOpen(WsOutbound outbound) {
         	globalConnections.add(this);
-            String message = String.format("* %s %s",
-                    nickname, "has joined.");
-            globalBroadcast(message);
         }
 
         @Override
         protected void onClose(int status) {
         	globalConnections.remove(this);
-            String message = String.format("* %s %s",
-                    nickname, "has disconnected.");
-            globalBroadcast(message);
+        	allPlayers.remove(p);
+        	UserNameToClientID.remove(userName);
+        	listPlayers("refreshPlayerList", false);
         }
 
         @Override
         protected void onBinaryMessage(ByteBuffer message) throws IOException {
-            throw new UnsupportedOperationException(
-                    "Binary message not supported.");
+            throw new UnsupportedOperationException("Binary message not supported.");
         }
 
         @Override
         protected void onTextMessage(CharBuffer message) throws IOException {
         	
+        	
         	String messStr = message.toString();
-        	String splitMsg[] = messStr.split("$!$");
-        	String userName = splitMsg[0];
+        	String splitMsg[] = messStr.split(REGEX_DELIM);
+        	
+        	if(userName == null) {
+        		userName = splitMsg[0];
+        	}
+        	
         	//null if userName does not exist yet, else returns clientID
         	Integer clientID = UserNameToClientID.get(userName);
         	        	
         	String command = splitMsg[1];
+        	String callBack = splitMsg[2];
         	String retMsg = "";
-        	Player p;
-        	
+        	        	
         	//add method invocations here based on the message received? -JL
         	switch(command) {        	
-        	//Expecting "userName$!$addClient"
+        	//Expecting "userName$!$addClient$!$callback"
 	        case "addClient":
 	        	if (clientID == null){
-	        		UserNameToClientID.put(userName, ++nextClientID);
-	        		allPlayers.add(new Player((Integer)UserNameToClientID.get(userName)));
+	        		UserNameToClientID.put(userName, id);
+	        		p = new Player((Integer)UserNameToClientID.get(userName), userName);
+	        		allPlayers.add(p);
 		        	out("added " + userName + " to game");
-	        		retMsg = "success";		        		
+	        		retMsg = SUCCESS_DELIM + userName;			        		
 	        	}
 	        	else{
-	        		retMsg = "failure$!$Failed to add " + userName + ". Name already exists as client ID " + UserNameToClientID.get(userName);
+	        		retMsg = "failure$!$Failed to sign in as '" + userName + "'. Name already exists as client ID " + UserNameToClientID.get(userName);
+	        		userName = null;
 	        	}
+	        	sendMessage(retMsg, callBack);
+	        	listPlayers("refreshPlayerList", false);
 	        	break;
-	        //Expecting "userName$!$startGame"
+	        //Expecting "userName$!$listPlayers$!$callback"
+	        case "listPlayers":
+	        	listPlayers(callBack, true);
+	        	break;
+	        case "listPlayersVerbose":
+	        	listPlayersCharactersAndLocations(callBack, latestGameState);
+	        	break;
+	        //Expecting "userName$!$startGame$!$callback"
 	        case "startGame":
 	        	dealCardsToPlayers();
 	        	out("Dealt cards");
@@ -145,9 +172,10 @@ public class GameWebSocketServlet extends WebSocketServlet {
 	        	out("Assigned Random ClueLess character");
 	        	latestGameState = createInitialGameState();
 	        	out("Initialezed Game");
-	        	retMsg = "success$!$"+orderedPlayerList.get(currentPlayerIndex).getCharacter().getName()+"'s turn";
+	        	retMsg = NOTIFY+DELIM+orderedPlayerList.get(currentPlayerIndex).getCharacter().getName()+DELIM+"handleStartGame";
+	        	globalBroadcast(retMsg);
 	        	break;
-	        //Expecting "userName$!$getPlayerInfo"
+	        //Expecting "userName$!$getPlayerInfo$!$callback"
 	        case "getPlayerInfo":
 	        	if(clientID == null){
 	        		retMsg = "failure$!$"+userName + " does not exist";
@@ -159,32 +187,34 @@ public class GameWebSocketServlet extends WebSocketServlet {
 	        		else
 	        			retMsg = "failure$!$client ID " + clientID+ " does not exist";
 	        	}
+	        	sendMessage(retMsg, callBack);
 	        	break;	
-        	//Expecting "userName$!$getAvailableMoves"
+        	//Expecting "userName$!$getAvailableMoves$!$callback"
 	        case "getAvailableMoves":
 	        	if(clientID == null){
 	        		retMsg = "failure$!$"+userName + " does not exist";
 	        	}
 	        	else{
-	        		p = getPlayer(clientID);
-	        		if(p!= null){
+	        		if(p != null){
 	        			ArrayList<Location> validMoves = getValidMoves(p);
-	        			retMsg = "success";
+	        			retMsg = SUCCESS;
 	        			for(Location l:validMoves)
-	        				retMsg += "$!$" + l.getName();
+	        				retMsg += DELIM + l.getName();
 	        		}
 	        		else	
 	        			retMsg = "failure$!$client ID " + clientID+ " does not exist";
 	        	}
+	        	sendMessage(retMsg, callBack);
 	        	break;	
 	        //Expecting one of the following text messages
-	        //"userName$!$takeTurn$!$move$!$Location"
-	        //"userName$!$takeTurn$!$suggest$!$ClueCharacter$!$Weapon$!$Room"
-	        //"userName$!$takeTurn$!$accuse$!$ClueCharacter$!$Weapon$!$Room"
-	        //"userName$!$takeTurn$!$endTurn"
+	        //"userName$!$takeTurn$!$callback$!$move$!$Location"
+	        //"userName$!$takeTurn$!$callback$!$suggest$!$ClueCharacter$!$Weapon$!$Room"
+	        //"userName$!$takeTurn$!$callback$!$accuse$!$ClueCharacter$!$Weapon$!$Room"
+	        //"userName$!$takeTurn$!$callback$!$endTurn"
 	        case "takeTurn":
 	        	if(clientID == null){
 	        		retMsg = "failure$!$"+userName + " does not exist";
+	        		sendMessage(retMsg, callBack);
 	        	}
 	        	else{
 	        		p = getPlayer(clientID);
@@ -199,19 +229,22 @@ public class GameWebSocketServlet extends WebSocketServlet {
 	    	        			for(Location loc:validMoves){
 	    	        				if(loc.getName().equals(splitMsg[3])){
 	    	        					handleMove(new PlayerMoveData(p, loc));
-	    	    	        			retMsg = "success";
+	    	    	        			retMsg = SUCCESS;
 	    	    	        			debugMove += loc.getName() +" ";
 	    	    	        		}
 	    	        			}
-	    	        			if(!retMsg.equals("success")){
+	    	        			if(!retMsg.equals(SUCCESS)){
 	    	        				retMsg = "failure$!$"+splitMsg[3] + " is not a valid move. Please choose one of the following: " + debugMove;
-	    	        			}	
+	    	        			}
+	    	        			sendMessage(retMsg, callBack);
 	    	        			break;	    	        			
 	        				case "suggest":
 	        					retMsg = handleSuggest(new SuggestOrAccuseData(p, CharacterIndex.getCharacterByName(splitMsg[3]), WeaponIndex.getWeaponByName(splitMsg[4]), LocationIndex.getRoomByName(splitMsg[5]),false,false));
+	        					sendMessage(retMsg, callBack);
 	        					break;
 	        				case "accuse":
 	        					retMsg = handleAccusation(new SuggestOrAccuseData(p, CharacterIndex.getCharacterByName(splitMsg[3]), WeaponIndex.getWeaponByName(splitMsg[4]), LocationIndex.getRoomByName(splitMsg[5]),true,false));
+	        					sendMessage(retMsg, callBack);
 	        					break;
 	        				case "endTurn":
 	        					currentPlayerIndex ++;
@@ -219,24 +252,72 @@ public class GameWebSocketServlet extends WebSocketServlet {
 	        					if(currentPlayerIndex == orderedPlayerList.size())
 	        						currentPlayerIndex = 0;
 	        					retMsg = "success$!$" + p.getCharacter().getName()+ " has ended turn. " + orderedPlayerList.get(currentPlayerIndex).getCharacter().getName() + "'s turn.";
+	        					globalBroadcast(retMsg);
 	        					break;
 	        				default:	        					
 	        				}
 	        			}
 	        			else{
 	        				retMsg  = "failure$!$Not your turn. It is " + orderedPlayerList.get(currentPlayerIndex) +"'s turn.";
+	        				sendMessage(retMsg, callBack);
 	        			}     				        		
 	        		}
-	        		else	
+	        		else {
 	        			retMsg = "failure$!$client ID " + clientID+ " does not exist";
+	        			sendMessage(retMsg, callBack);
+	        		}
 	        	}
 	        	break;
 	        
-	        default:
-	        	globalBroadcast(retMsg);
-	        }        	        			
+	        }
         }
 
+        private void listPlayersCharactersAndLocations(String callBack, GameState gs) {
+        	String retMsg;
+        	
+        	StringBuffer buff = new StringBuffer(SUCCESS).append(DELIM);
+        	ArrayList<ClueCharacter> seenChars = new ArrayList<ClueCharacter>();
+        	
+        	for(Player player : allPlayers) {
+        		buff.append(player.getVerboseDisplayText());
+        		if(gs.currentPlayer != null && gs.currentPlayer.equals(player)) {
+        			buff.append("<b>           YOUR TURN!</b>").append(DELIM);
+        		}
+        		seenChars.add(player.getCharacter());
+        	}
+        	
+        	for(ClueCharacter c : latestGameState.charactersPositions) {
+        		if(!seenChars.contains(c)) {
+        			buff.append(c.getVerboseDisplayText()).append(DELIM);
+        		}
+        	}
+        	
+        	buff.append(callBack);
+        	retMsg = buff.toString();
+        	
+        	sendMessage(retMsg, "", false);
+        }
+        
+        private void listPlayers(String callBack, boolean clientInitiated) {
+        	String retMsg;
+        	
+        	StringBuffer buff = new StringBuffer()
+        		.append(clientInitiated ? SUCCESS : NOTIFY)
+        		.append(DELIM);
+        	
+        	for(Player player : allPlayers) {
+        		buff.append(player.getDisplayText()).append(DELIM);
+        	}
+        	
+        	buff.append(callBack);
+        	retMsg = buff.toString();
+        	
+        	if(!clientInitiated) {
+        		globalBroadcast(retMsg);
+        	} else {
+        		sendMessage(retMsg, "", false);
+        	}
+        }
 
 		private void globalBroadcast(String message) {
             for (ChatMessageInbound connection : globalConnections) {
@@ -248,11 +329,26 @@ public class GameWebSocketServlet extends WebSocketServlet {
                 }
             }
         }
+		
+		private void sendMessage(String message, String callBack) {
+			sendMessage(message, callBack, true);
+		}
+		
+		private void sendMessage(String message, String callBack, boolean needDelim) {
+			try {
+				CharBuffer buffer = CharBuffer.wrap(message + (needDelim ? DELIM : "") + callBack);
+	            this.getWsOutbound().writeTextMessage(buffer);
+			} catch (IOException ignore) {
+				// Ignore
+			}
+		}
     }
+    
     private ArrayList<Location> getValidMoves(Player p)
     {
 		ArrayList<Location> possibleLocs = p.getCharacter().getLocation().getAllConnections();
 		ArrayList<Location> validMoves = new ArrayList<Location>();
+		out(possibleLocs.toString());
 		for(Location loc: possibleLocs){
 			for(Player otherPlayer: allPlayers){
 				if(!p.equals(otherPlayer)){
@@ -261,6 +357,7 @@ public class GameWebSocketServlet extends WebSocketServlet {
 				}
 			}
 		}
+		out(validMoves.toString());
 		return validMoves;
     }
     
@@ -474,7 +571,7 @@ public class GameWebSocketServlet extends WebSocketServlet {
 		{
 			if (p.character.equals(data.getSuspect()))
 			{
-				Player p2 = new Player(p.playerId);
+				Player p2 = new Player(p.playerId, p.userName);
 				// changes the location
 				p2.character = data.getSuspect();
 				p2.playerCards = p.playerCards;

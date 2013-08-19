@@ -1,0 +1,199 @@
+<!--gameView.html, in which we suddenly find out that jQuery UI != jQuery -->
+<span style="width:500px;border:1px solid black;float:left">
+	<b>Current Players:</b>
+	<ul id="gvPlayersBox" style="width:500px;height:150px;border:1px solid black"></ul>
+	
+	<table style="width:500px;text-align:center">
+		<tr><td>
+			<button id="moveBtn" type="button" style="width:100px">Move</button>
+			<button type="button" style="width:120px">End Turn</button>
+			<button type="button" id="gvHelpBtn">HELP?</button>
+			<button type="button" id="gvQuitBtn">EXIT GAME</button>
+		</td></tr>
+		<tr><td>
+			<button id="suggestBtn" type="button">Make A Suggestion</button>
+			<button id="accuseBtn" type="button">Make An Accusation</button>
+		</td></tr>
+	</table>
+	<b>Your Cards:</b>
+	<span style="width:500px;border:1px solid black;">
+		<table style="width:500px;text-align:center">
+			<tr><td>Candlestick<br>Billiard Room<br>Col. Mustard</td><td>Hall<br>Knife<br>Library</td><td>Mr. Green</td>
+		</tr></table>
+	</span>
+</span>
+<img id="miniMap" src="img/ClueBoard.PNG" width="600" height="600" >
+
+	
+<!-- Popups -->
+
+<div id="suggestPopup" title="Make a Suggestion?">
+	<form>
+		<select id="whoCmBx">
+			<option value="Ms. Scarlet">Ms. Scarlet</option>
+			<option value="Col. Mustard">Col. Mustard</option>
+			<option value="Mrs. Peacock">Mrs. Peacock</option>
+			<option value="Prof. Plum">Prof. Plum</option>
+			<option value="Mrs. White">Mrs. White</option>
+			<option value="Mr. Green">Mr. Green</option>
+		</select>, with the 
+		<select id="withCmBx">
+			<option value="Rope">Rope</option>
+			<option value="Lead Pipe">Lead Pipe</option>
+			<option value="Knife">Knife</option>
+			<option value="Wrench">Wrench</option>
+			<option value="Candlestick">Candlestick</option>
+			<option value="Pistol">Pistol</option>
+		</select>, in the 
+		<select id="whereCmBx">
+			<option value="Study">Study</option>
+			<option value="Lounge">Lounge</option>
+			<option value="Billiard Room">Billiard Room</option>
+			<option value="Dining Room">Dining Room</option>
+			<option value="Conservatory">Conservatory</option>
+			<option value="Ball Room">Ball Room</option>
+			<option value="Kitchen">Kitchen</option>
+		</select>
+		<div style="text-align:center"> 
+			<button id="submitSuggestBtn" >Suggest!</button>
+		</div>
+	</form>
+	
+</div>
+
+<div id="accusePopup" title="Make a Accusation?">
+	<form>
+		<select id="a_whoCmBx">
+			<option value="Ms. Scarlet">Ms. Scarlet</option>
+			<option value="Col. Mustard">Col. Mustard</option>
+			<option value="Mrs. Peacock">Mrs. Peacock</option>
+			<option value="Prof. Plum">Prof. Plum</option>
+			<option value="Mrs. White">Mrs. White</option>
+			<option value="Mr. Green">Mr. Green</option>
+		</select>, with the 
+		<select id="a_withCmBx">
+			<option value="Rope">Rope</option>
+			<option value="Lead Pipe">Lead Pipe</option>
+			<option value="Knife">Knife</option>
+			<option value="Wrench">Wrench</option>
+			<option value="Candlestick">Candlestick</option>
+			<option value="Pistol">Pistol</option>
+		</select>, in the 
+		<select id="a_whereCmBx">
+			<option value="Study">Study</option>
+			<option value="Lounge">Lounge</option>
+			<option value="Billiard Room">Billiard Room</option>
+			<option value="Dining Room">Dining Room</option>
+			<option value="Conservatory">Conservatory</option>
+			<option value="Ball Room">Ball Room</option>
+			<option value="Kitchen">Kitchen</option>
+		</select>
+		<div style="text-align:center"> 
+			<button id="accuseSubmitButton">Accuse!</button>
+		</div>
+	</form>
+	
+</div>
+
+<div id="movePopup" title="I'll move to the...">
+	<form>
+		<select id="moveCmBx"></select>
+		<div style="text-align:center"> 
+			<button id="moveSubmitButton" click="">OK!</button>
+		</div>
+	</form>
+</div>
+
+<script>
+	var myTurn = false;
+	
+	function initGameView(msgParts) {
+		$("#moveBtn").click(moveClicked);
+		$("#accuseBtn").click(accuseClicked);
+		$("#suggestBtn").click(suggestClicked);
+		$("#gvHelpBtn").click(helpClicked);
+		
+		$("#suggestPopup").dialog({
+	      autoOpen: false,
+	      show: {
+	        effect: "blind",
+	        duration: 1000
+	      },
+	      hide: {
+	        effect: "explode",
+	        duration: 1000
+	      },
+	      modal: true
+   		});
+   		
+   		$("#accusePopup").dialog({
+	      autoOpen: false,
+	      show: {
+	        effect: "blind",
+	        duration: 1000
+	      },
+	      hide: {
+	        effect: "explode",
+	        duration: 1000
+	      },
+	      modal: true
+   		});
+   		
+   		$("#movePopup").dialog({
+	      autoOpen: false,
+	      show: {
+	        effect: "blind",
+	        duration: 1000
+	      },
+	      hide: {
+	        effect: "explode",
+	        duration: 1000
+	      },
+	      modal: true
+   		});
+   		
+   		$("button").button();
+   		
+   		GameContext.sendWithCallback(userName+delim+'listPlayersVerbose', 'refreshGameViewPlayerList')
+	}
+	
+	function suggestClicked() {
+		$("#suggestPopup").dialog("open");
+	}
+	
+	function accuseClicked() {
+		$("#accusePopup").dialog("open");
+	}
+	
+	function moveClicked() {
+		GameContext.sendWithCallback(userName+delim+'getAvailableMoves', 'handleMoveClicked');
+	}
+	
+	function handleMoveClicked(msgParts) {
+		
+		var moveBox = document.getElementById('moveCmBx');
+		Console.log(msgParts);
+		for(var i = 1; i < msgParts.length-1; i++) {
+			
+			var opt = document.createElement('option')
+			opt.value = opt.text = msgParts[i];
+			moveBox.appendChild(opt);
+		}
+		
+		$("#movePopup").dialog("open");
+	}
+	
+	function refreshGameViewPlayerList(msgParts) {
+		var playersBox = document.getElementById('gvPlayersBox');
+		
+		while(playersBox.hasChildNodes()) {
+			playersBox.removeChild(playersBox.lastChild);
+		}
+		
+		for(var i = 1; i < msgParts.length-1; i++) {
+			var li = document.createElement('li')
+			li.innerHTML = msgParts[i];
+			playersBox.appendChild(li);
+		}
+	}
+</script>

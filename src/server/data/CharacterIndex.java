@@ -2,10 +2,9 @@ package server.data;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Vector;
 
 import dictionary.data.LocationIndex;
-import dictionary.gameEntities.*;
+import dictionary.gameEntities.ClueCharacter;
 
 /**
  * Status: Code finished

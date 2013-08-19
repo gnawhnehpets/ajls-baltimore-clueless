@@ -4,11 +4,26 @@
 }  
 
 #console-container {
-	width: 100%;
+	position: fixed;
+	top: 75%;
+	width: 25%;
 	height: 25%;
 }
 
-#welcomeDiv {
+#console {
+	border: 2px solid red;
+}
+
+#playerInputDiv {
+	width: 300px;
+	height: 2em;
+	position: relative;
+	margin: 1em 0 0 150px;
+	text-align: center;
+	/*border: 2px solid red;*/
+}
+
+.centeredDiv {
 	width: 600px;
 	height: 600px;
 	position: absolute;
@@ -20,7 +35,7 @@
 	/*border: 2px solid red;*/
 }
 
-#menu {
+.buttonsMenu {
 	margin: 0;
 	padding: 0;
 	list-style-type: none;
@@ -29,16 +44,66 @@
 	/*border: 2px solid red;*/
 }
 
-#menu li { display: inline; }
+.buttonsMenu li { display: inline; }
 
-#menu li a {
+.buttonsMenu li a {
 	text-decoration: none;
 	padding: .2em 1em;
 	color: #fff;
 	background-color: #369;
 }
 
-#menu li a:hover {
+.buttonsMenu li a:hover {
+	color: #fff;
+	background-color: #80ffff;
+}
+
+
+#gameLobbyDiv {
+	border: 2px solid black;
+}
+
+#playerListDiv {
+	position : absolute;
+	height : 95%;
+	width : 46.25%;
+	margin: 2.5% 2.5% 2.5% 2.5%;
+	float : left;
+	border: 2px solid black;
+}
+
+#buttonsBar {
+	position : absolute;
+	height : 95%;
+	width : 46.25%;
+	margin: 2.5% 2.5% 2.5% 1.25%;
+	left : 50%;
+	float : right;
+	border: 2px solid black;
+}
+
+#infoDiv {
+	
+}
+
+.vertButtonsMenu {
+	margin: 0;
+	padding: 0;
+	list-style-type: none;
+	text-align: center;
+}
+
+.vertButtonsMenu li {
+	margin-top : 15px;
+}
+.vertButtonsMenu li a {
+	text-decoration: none;
+	padding: .2em 1em;
+	color: #fff;
+	background-color: #369;
+}
+
+.vertButtonsMenu li a:hover {
 	color: #fff;
 	background-color: #80ffff;
 }

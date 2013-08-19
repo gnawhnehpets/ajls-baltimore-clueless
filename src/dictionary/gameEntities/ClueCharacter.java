@@ -94,6 +94,11 @@ public class ClueCharacter implements Serializable {
 	{
 		return movedBySuggestion;
 	}
+	
+	public String getVerboseDisplayText() {
+		return getName() + " (Computer) " + getLocation().getName();
+	}
+	
 	@Override
 	public String toString() {
 		return getName()+" ("+getLocation().getName()+" moved:"+movedBySuggestion+" )";

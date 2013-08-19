@@ -3,19 +3,25 @@
     <head>
         <title>Welcome!</title>
         <link rel="stylesheet" href="css/main.css">
+        <link href="css/smoothness/jquery-ui-1.10.3.custom.css" rel="stylesheet">
     </head>
     <body>
 
         <div id='outerDiv'></div>
 
-        <script src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
-
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+		<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.10.2/jquery-ui.js"></script>
         <script>
+        	var callbacks = new Array();
+        	var userName;
+        	var delim = '$!$';
+			var lastCommandResponse;
+			
 			var GameContext = {};
-
+			
 			GameContext.socket = null;
-
-			GameContext.connect = (function(host) {
+			
+			GameContext.connect = (function(host, loadLists) {
 				if ('WebSocket' in window) {
 					GameContext.socket = new WebSocket(host);
 				} else if ('MozWebSocket' in window) {
@@ -27,50 +33,100 @@
 
 				GameContext.socket.onopen = function() {
 					Console.log('Info: WebSocket connection opened.');
-					GameContext.socket.send("we in business");
+					GameContext.sendWithCallback(userName+delim+'addClient', 'handleNameOK');
 				};
 
 				GameContext.socket.onclose = function() {
 					Console.log('Info: WebSocket closed.');
 				};
 
+				GameContext.sendWithCallback = function(message, callback) {
+					GameContext.socket.send(message+delim+callback);
+				};
+			
 				GameContext.socket.onmessage = function(message) {
-					Console.log(message.data);
+					
+					var msgParts = message.data.split(new RegExp(RegExp.escape(delim)));
+					var callback = msgParts[msgParts.length-1];
+					
+					Console.log('message received');
+					if(msgParts[0] == 'success') {
+						if(callback != undefined && callback.length > 0) {
+							executeFunctionByName(callback, window, msgParts);
+						}
+					} else if (msgParts[0] == 'failure') {
+						alert(msgParts[1]);
+						Console.log(msgParts[1]);
+					} else if (msgParts[0] == 'notify') {
+						if(callback != undefined && callback.length > 0) {
+							Console.log(message.data)
+							Console.innerHTML = '';
+							Console.log(msgParts);
+							executeFunctionByName(callback, window, msgParts);
+						}
+					} else {
+						Console.log(message.data);
+					}
 				};
 			});
-
-            GameContext.initialize = function() {
+			
+            GameContext.initializeConnection = function() {
+            	
                 if (window.location.protocol == 'http:') {
-                    alert('ws://' + window.location.host + '/clueless');
-                    GameContext.connect('ws://' + window.location.host + '/clueless/ws');
+                    GameContext.connect('ws://' + window.location.host + '/clueless/ws', true);
                 } else {
-                    GameContext.connect('wss://' + window.location.host + '/clueless/ws');
+                    GameContext.connect('wss://' + window.location.host + '/clueless/ws', true);
                 }
             };
-        
+
+			function establishConnectionAndCheckNameOK() {
+            	GameContext.initializeConnection();
+            }
+            
 			$(document).ready(function() {
 				loadWelcomeScreen();
+				RegExp.escape= function(s) {
+    				return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')
+				};
 			});
-
-            function loadWelcomeScreen() {
-                alert("ready!");
+			
+            function loadWelcomeScreen(reset) {
+            	if(reset && GameContext.socket != null) {
+            		GameContext.socket.close();
+            	}
                 $("#outerDiv").load('welcome.html', function () {
                     $("#playBtn").click(playClicked);
                     $("#helpBtn").click(helpClicked);
-                    Console.log("I AM THE CONSOLE!");
                 });
             }
             
             function loadGameBrowser() {
-                alert("play");
                 $("#outerDiv").load("lobby.html", function() {
-                    document.title='Game Browser';
-                    GameContext.initialize();
+                    document.title='Game Lobby';
+                    initGameLobby();
                 });
             }
             
-			function playClicked(evt) {
+            function loadGameView() {
+            	$("#outerDiv").load("gameView.html", function() {
+            		document.title='Who Dun It?';
+            		initGameView();
+            	});
+            }
+            
+			function handleNameOK(msgParts) {
+				userName = msgParts[1];
 				loadGameBrowser();
+			}
+            
+			function playClicked(evt) {
+				var input = document.getElementById('playerInput')
+				if(input.value.length > 0) {
+					userName = input.value;
+					establishConnectionAndCheckNameOK(input.value);
+				} else {
+					alert("Please enter a user name before continuing!");
+				}
 			}
 
 			function helpClicked(evt) {
@@ -80,6 +136,13 @@
 				});
 			}
 			
+			function quitClicked() {
+				if(GameContext.socket != null) {
+					GameContext.socket.close();
+				}
+				loadWelcomeScreen(true);
+			}
+		
 			var Console = {};
 	
 	        Console.log = (function(message) {
@@ -88,13 +151,33 @@
 	            p.style.wordWrap = 'break-word';
 	            p.innerHTML = message;
 	            console.appendChild(p);
-	            while (console.childNodes.length > 25) {
+	            while (console.childNodes.length > 5) {
 	                console.removeChild(console.firstChild);
 	            }
 	            console.scrollTop = console.scrollHeight;
 	        });
 	        
+	        function refreshPlayerList(msgParts) {
+	        	Console.log('refreshPlayerList')
+	        	if(PlayerList != undefined && PlayerList != null) {
+	        		PlayerList.clear();
+	        		for(var i = 1; i < msgParts.length-1; i++) {
+	        			PlayerList.append(msgParts[i]);
+	        		}
+	        	} else {
+	        		Console.log('killed')
+	        	}
+	        }
 	        
+	        function executeFunctionByName(functionName, context /*, args */) {
+				var args = Array.prototype.slice.call(arguments).splice(2);
+				var namespaces = functionName.split(".");
+				var func = namespaces.pop();
+				for(var i = 0; i < namespaces.length; i++) {
+					context = context[namespaces[i]];
+				}
+				return context[func].apply(this, args);
+			}
         </script>
         
         <div id="console-container">

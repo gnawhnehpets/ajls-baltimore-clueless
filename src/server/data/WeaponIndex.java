@@ -2,10 +2,10 @@ package server.data;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
 import dictionary.data.LocationIndex;
-import dictionary.gameEntities.*;
+import dictionary.gameEntities.Location;
+import dictionary.gameEntities.Weapon;
 
 /**
  * Status: Code finished

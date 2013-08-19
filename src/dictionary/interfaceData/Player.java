@@ -1,13 +1,9 @@
 package dictionary.interfaceData;
 
 import java.io.Serializable;
-import java.net.SocketImpl;
-import java.util.ArrayList;
-import java.util.List;
 
 import dictionary.gameEntities.ClueCharacter;
 import dictionary.gameEntities.Hand;
-import dictionary.gameEntities.StatusLogEntry;
 
 
 
@@ -25,12 +21,14 @@ public class Player implements Serializable{
 	 * 
 	 */
 	private static final long serialVersionUID = -7989216279851394136L;
+	public String userName;
 	public final int playerId;
 	public Hand playerCards;
 	public ClueCharacter character;
 
-	public Player(int playerIdIn)
+	public Player(int playerIdIn, String userName)
 	{
+		this.userName = userName;
 		playerId = playerIdIn;
 		playerCards = new Hand();
 	}
@@ -54,11 +52,24 @@ public class Player implements Serializable{
 		return result;
 	}
 	
-	public int getID(){
+	public Integer getID(){
 		return playerId;
 	}
+	
 	public ClueCharacter getCharacter(){
 		return character;
+	}
+	
+	public String getVerboseDisplayText() {
+		if(character != null) {
+			return character.getName() + " (" + userName + ") " + character.getLocation().getName();
+		} else {
+			return "UNKNOWN (" + userName + ")";
+		}
+	}
+	
+	public String getDisplayText() {
+		return userName + (character == null ? "" : "(" + character.getName() + ")");
 	}
 	
 	@Override
@@ -70,4 +81,5 @@ public class Player implements Serializable{
 				+" "+
 				this.playerCards.toString();
 	}
+	
 } //end Player

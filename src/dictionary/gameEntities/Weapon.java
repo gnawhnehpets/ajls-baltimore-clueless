@@ -2,8 +2,6 @@ package dictionary.gameEntities;
 
 import java.io.Serializable;
 
-import dictionary.interfaceData.Player;
-
 /**
  * status: finished
  * @author mjp

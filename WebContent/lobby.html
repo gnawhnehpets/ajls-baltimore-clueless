@@ -1,11 +1,57 @@
-<div id="gameBrowserDiv">
-    <div id='gameListDiv'>
-        
+<div id="gameLobbyDiv" class="centeredDiv">
+    <div id='playerListDiv'></div>
+    <!--<div id='infoDiv'></div>-->
+    <div id='buttonsBar'>
+    	<ul class="vertButtonsMenu">
+			<li><a href="#" id="lobbyPlayBtn">Start Game</a></li>
+			<li><a href="#" id="lobbyQuitBtn">Leave Game</a></li>
+			<li><a href="#" id="lobbyHelpBtn">How To Play</a></li>
+		</ul>
     </div>
-    <div id='gameInfoBoxDiv'>
-        
-    </div>
-    <div id='gameButtonBoxDiv'>
-        
-    </div>
+    
+    <script>
+    	var PlayerList = {};
+	    
+	    PlayerList.clear = (function(){
+	    	var playerList = document.getElementById('playerListDiv');
+	    	while(playerList.hasChildNodes()) {
+	    		playerList.removeChild(playerList.lastChild);
+	    	}
+	    });
+	    
+	    PlayerList.append = (function(message) {
+	            var playerList = document.getElementById('playerListDiv');
+	            var p = document.createElement('p');
+	            p.style.wordWrap = 'break-word';
+	            p.innerHTML = message;
+	            playerList.appendChild(p);
+	            while (playerList.childNodes.length > 25) {
+	                playerList.removeChild(playerList.firstChild);
+	            }
+	            playerList.scrollTop = playerList.scrollHeight;
+	        });
+	        
+		function initGameLobby() {
+			$("#lobbyPlayBtn").click(startGameClicked);
+			$("#lobbyQuitBtn").click(quitClicked);
+			$("#lobbyHelpBtn").click(helpClicked);
+			GameContext.sendWithCallback(userName+delim+'listPlayers', 'handleListPlayers');
+		}
+		
+		function startGameClicked() {
+			GameContext.sendWithCallback(userName+delim+'startGame', 'handleStartGame');
+		}
+		
+		function handleStartGame(msgParts) {
+			loadGameView(msgParts);
+		}
+		
+		function handleListPlayers(msgParts) {
+            for(var i = 1; i < msgParts.length-1; i++) {
+            	var part = msgParts[i];
+            	PlayerList.append(part);
+            }
+		}
+		/*function helpClicked() {}*/
+    </script>
 </div>
